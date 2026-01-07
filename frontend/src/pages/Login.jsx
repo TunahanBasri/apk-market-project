@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import axios from 'axios';
+// 1. Standart axios yerine kendi oluşturduğun api nesnesini import et
+// Not: api.js dosyanın konumuna göre yolu (../api/axios vb.) kontrol et
+import api from '../api/axios'; 
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
@@ -7,28 +9,28 @@ export default function Login() {
   const [formData, setFormData] = useState({ username: '', email: '', password: '' });
   const navigate = useNavigate();
 
-  // --- RAILWAY BACKEND LINKI ---
-  const API_URL = "https://apk-market-project-production.up.railway.app";
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       if (isLogin) {
-        // LINK GÜNCELLENDİ
-        const response = await axios.post(`${API_URL}/auth/login`, {
+        // 2. URL'yi artık sadece endpoint (/auth/login) olarak yazıyoruz
+        const response = await api.post('/auth/login', {
           username: formData.username,
           password: formData.password
         });
+        
+        // Yanıt içindeki verileri sakla
         localStorage.setItem('token', response.data.access_token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
         navigate('/market');
       } else {
-        // LINK GÜNCELLENDİ
-        await axios.post(`${API_URL}/auth/register`, formData);
+        // Kayıt işlemi için endpoint
+        await api.post('/auth/register', formData);
         alert('Kayıt Başarılı! Şimdi giriş yapabilirsin.');
         setIsLogin(true);
       }
     } catch (error) {
+      // Hata durumunda detaylı log görmek istersen: console.error(error);
       alert('İşlem Başarısız! Bilgileri kontrol et.');
     }
   };

@@ -1,10 +1,9 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3000', // Backend adresi
+  baseURL: 'https://apk-market-project-production.up.railway.app', 
 });
 
-// Her isteğe otomatik Token ekleyen ayar
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
