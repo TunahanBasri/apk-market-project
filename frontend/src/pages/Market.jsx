@@ -22,6 +22,9 @@ export default function Market() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = user.roles && user.roles.includes('ADMIN');
 
+  // --- RAILWAY BACKEND LINKI ---
+  const API_URL = "https://apk-market-project-production.up.railway.app";
+
   useEffect(() => {
     if (!token) { navigate('/login'); return; }
     fetchApps();
@@ -30,7 +33,8 @@ export default function Market() {
 
   const fetchApps = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/apps', { headers: { Authorization: `Bearer ${token}` } });
+      // LINK GÜNCELLENDİ
+      const response = await axios.get(`${API_URL}/apps`, { headers: { Authorization: `Bearer ${token}` } });
       setApps(response.data);
       setLoading(false);
     } catch (error) { setLoading(false); }
@@ -38,7 +42,8 @@ export default function Market() {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/apps/categories', { headers: { Authorization: `Bearer ${token}` } });
+      // LINK GÜNCELLENDİ
+      const response = await axios.get(`${API_URL}/apps/categories`, { headers: { Authorization: `Bearer ${token}` } });
       setCategories(response.data);
       if (response.data.length > 0 && !newApp.categoryId && !editingId) {
         setNewApp(prev => ({ ...prev, categoryId: response.data[0].id }));
@@ -49,7 +54,8 @@ export default function Market() {
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return toast.warning("Kategori adı boş olamaz!");
     try {
-        await axios.post('http://localhost:3000/apps/categories', { name: newCategoryName }, { headers: { Authorization: `Bearer ${token}` } });
+        // LINK GÜNCELLENDİ
+        await axios.post(`${API_URL}/apps/categories`, { name: newCategoryName }, { headers: { Authorization: `Bearer ${token}` } });
         toast.success(`✅ "${newCategoryName}" kategorisi eklendi!`);
         setNewCategoryName('');
         fetchCategories();
@@ -99,10 +105,12 @@ export default function Market() {
     e.preventDefault();
     try {
       if (editingId) {
-        await axios.patch(`http://localhost:3000/apps/${editingId}`, newApp, { headers: { Authorization: `Bearer ${token}` } });
+        // LINK GÜNCELLENDİ (PATCH)
+        await axios.patch(`${API_URL}/apps/${editingId}`, newApp, { headers: { Authorization: `Bearer ${token}` } });
         toast.success('Uygulama güncellendi! ✅');
       } else {
-        await axios.post('http://localhost:3000/apps', newApp, { headers: { Authorization: `Bearer ${token}` } });
+        // LINK GÜNCELLENDİ (POST)
+        await axios.post(`${API_URL}/apps`, newApp, { headers: { Authorization: `Bearer ${token}` } });
         toast.success('Uygulama yayınlandı! 🚀');
       }
       setNewApp({ name: '', version: '1.0', description: '', apkDownloadUrl: '', imageUrl: '', categoryId: categories[0]?.id || '' });
@@ -137,7 +145,8 @@ export default function Market() {
   const handleDeleteApp = async (id) => {
     if(!window.confirm("Silmek istediğine emin misin?")) return;
     try {
-        await axios.delete(`http://localhost:3000/apps/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+        // LINK GÜNCELLENDİ
+        await axios.delete(`${API_URL}/apps/${id}`, { headers: { Authorization: `Bearer ${token}` } });
         toast.success("Uygulama silindi.");
         fetchApps(); 
     } catch (error) { toast.error("Silinemedi."); }
