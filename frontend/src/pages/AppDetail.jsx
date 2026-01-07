@@ -18,6 +18,9 @@ export default function AppDetail() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = user.roles && user.roles.includes('ADMIN');
 
+  // --- RAILWAY BACKEND LINKI ---
+  const API_URL = "https://apk-market-project-production.up.railway.app";
+
   useEffect(() => {
     if (!token) { navigate('/login'); return; }
     fetchData();
@@ -25,8 +28,9 @@ export default function AppDetail() {
 
   const fetchData = async () => {
     try {
-      const appRes = await axios.get(`http://localhost:3000/apps/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      const itemsRes = await axios.get(`http://localhost:3000/items/app/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      // LINK GÜNCELLENDİ
+      const appRes = await axios.get(`${API_URL}/apps/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      const itemsRes = await axios.get(`${API_URL}/items/app/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       setApp(appRes.data);
       setItems(itemsRes.data);
       setLoading(false);
@@ -39,7 +43,8 @@ export default function AppDetail() {
   const handleAddItem = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:3000/items', { ...newItem, appId: id }, { headers: { Authorization: `Bearer ${token}` } });
+      // LINK GÜNCELLENDİ
+      await axios.post(`${API_URL}/items`, { ...newItem, appId: id }, { headers: { Authorization: `Bearer ${token}` } });
       toast.success('💎 Yeni paket mağazaya eklendi!');
       setNewItem({ name: '', description: '', price: '' });
       fetchData();
@@ -48,25 +53,23 @@ export default function AppDetail() {
 
   const handleDeleteItem = async (itemId) => {
     try {
-        await axios.delete(`http://localhost:3000/items/${itemId}`, { headers: { Authorization: `Bearer ${token}` } });
+        // LINK GÜNCELLENDİ
+        await axios.delete(`${API_URL}/items/${itemId}`, { headers: { Authorization: `Bearer ${token}` } });
         toast.success('🗑️ Paket başarıyla silindi.');
         fetchData();
     } catch (error) { toast.error('Silme işlemi başarısız!'); }
   };
 
-  // --- 🔥 GÜNCELLENEN: GERÇEK SATIN ALMA İŞLEMİ ---
   const handleBuy = async (item) => {
-    // 1. İşlem başladığını göster
     toast.info(`🛒 "${item.name}" işlemi başlatılıyor...`, { autoClose: 1000 });
     
     try {
-        // 2. Backend'e gerçek istek at (Veritabanına kaydet)
-        await axios.post('http://localhost:3000/items/buy', {
-            userId: user.id,   // LocalStorage'daki kullanıcı ID'si
-            itemId: item.id    // Alınan paket ID'si
+        // LINK GÜNCELLENDİ
+        await axios.post(`${API_URL}/items/buy`, {
+            userId: user.id,
+            itemId: item.id
         }, { headers: { Authorization: `Bearer ${token}` } });
 
-        // 3. Başarılı olursa yeşil mesaj ver
         setTimeout(() => {
             toast.success(`✅ Başarılı! "${item.name}" envanterinize eklendi (-${item.price} ₺)`);
         }, 1200);
@@ -77,7 +80,6 @@ export default function AppDetail() {
     }
   };
 
-  // --- INSTALLER İNDİRME FONKSİYONU ---
   const handleDownloadApk = () => {
     if (isDownloading) return;
     setIsDownloading(true);
@@ -85,18 +87,14 @@ export default function AppDetail() {
 
     setTimeout(() => {
         const element = document.createElement("a");
-        
-        // Gerçek dosya var mı kontrol et
         if (app.apkDownloadUrl && app.apkDownloadUrl.startsWith('data:')) {
             element.href = app.apkDownloadUrl;
         } else {
-            // Yoksa demo indir
             const file = new Blob(["Installer demo..."], {type: 'text/plain'});
             element.href = URL.createObjectURL(file);
         }
 
         const safeName = app.name.replace(/\s+/g, '_');
-        // Dosya ismine _Installer ekle
         element.download = `${safeName}_Installer_v${app.version}.apk`;
         
         document.body.appendChild(element);
@@ -159,7 +157,6 @@ export default function AppDetail() {
               <p style={{ color: '#28a745', fontWeight: 'bold', fontSize: '24px', margin: '5px 0' }}>{item.price} ₺</p>
               
               <div style={{ display: 'flex', gap: '5px', marginTop: '15px' }}>
-                {/* DİKKAT: Artık item'ın kendisini gönderiyoruz */}
                 <button onClick={() => handleBuy(item)} style={{ flex: 1, padding: '10px', backgroundColor: '#ffc107', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#333' }}>
                     Satın Al
                 </button>
@@ -170,7 +167,6 @@ export default function AppDetail() {
                     </button>
                 )}
               </div>
-
             </div>
           ))}
         </div>

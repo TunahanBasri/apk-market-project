@@ -7,11 +7,15 @@ export default function Login() {
   const [formData, setFormData] = useState({ username: '', email: '', password: '' });
   const navigate = useNavigate();
 
+  // --- RAILWAY BACKEND LINKI ---
+  const API_URL = "https://apk-market-project-production.up.railway.app";
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       if (isLogin) {
-        const response = await axios.post('http://localhost:3000/auth/login', {
+        // LINK GÜNCELLENDİ
+        const response = await axios.post(`${API_URL}/auth/login`, {
           username: formData.username,
           password: formData.password
         });
@@ -19,7 +23,8 @@ export default function Login() {
         localStorage.setItem('user', JSON.stringify(response.data.user));
         navigate('/market');
       } else {
-        await axios.post('http://localhost:3000/auth/register', formData);
+        // LINK GÜNCELLENDİ
+        await axios.post(`${API_URL}/auth/register`, formData);
         alert('Kayıt Başarılı! Şimdi giriş yapabilirsin.');
         setIsLogin(true);
       }
@@ -34,7 +39,7 @@ export default function Login() {
       display: 'flex', 
       justifyContent: 'center', 
       alignItems: 'center', 
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', // Modern Arka Plan
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
     }}>
       <div style={{ 
