@@ -1,0 +1,80 @@
+// backend/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// --- KULLANICI VE ROL (N:M İlişki) ---
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  roles      Role[]
+  deliveries Delivery[]
+}
+
+model Role {
+  id   Int    @id @default(autoincrement())
+  name String @unique 
+
+  users User[]
+}
+
+// --- UYGULAMA VE KATEGORİ (N:M İlişki) ---
+model App {
+  id             Int      @id @default(autoincrement())
+  name           String
+  version        String
+  description    String?
+  apkDownloadUrl String?  
+  
+  // --- YENİ EKLENEN SATIR ---
+  imageUrl       String?  // (Soru işareti koyduk ki boş bırakılırsa hata vermesin)
+  // --------------------------
+
+  createdAt      DateTime @default(now())
+
+  categories     Category[]
+  itemPackages   ItemPackage[]
+}
+
+model Category {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  apps App[]
+}
+
+// --- EŞYA PAKETLERİ (1:N İlişki) ---
+model ItemPackage {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  price       Decimal 
+   
+  appId       Int
+  app         App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  deliveries  Delivery[]
+}
+
+// --- TESLİMAT / SİPARİŞ GEÇMİŞİ ---
+model Delivery {
+  id           Int      @id @default(autoincrement())
+  gameUserId   String   
+  createdAt    DateTime @default(now())
+
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id])
+
+  itemPackageId Int
+  itemPackage   ItemPackage @relation(fields: [itemPackageId], references: [id])
+}

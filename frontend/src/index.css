@@ -1,0 +1,30 @@
+/* Sayfanın varsayılan boşluklarını sıfırla */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Tüm sayfanın yüksekliğini ve zeminini ayarla */
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #f4f6f9; /* Sayfa arka plan rengi */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* React'in ana kutusunu tam ekran yap */
+#root {
+  width: 100%;
+  min-height: 100vh; /* Ekranın tamamını kapla */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Buton ve Inputların fontlarını düzelt */
+button, input {
+  font-family: inherit;
+}
