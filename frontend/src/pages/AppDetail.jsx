@@ -11,7 +11,10 @@ export default function AppDetail() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
+  
+  // 💰 Bakiye ve İşlem Kilit State'leri
   const [userBalance, setUserBalance] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false); // 🔒 KİLİT MEKANİZMASI
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = user.roles && user.roles.includes('ADMIN');
@@ -42,38 +45,48 @@ export default function AppDetail() {
   };
 
   const handleBuy = async (item) => {
+    // 🔒 1. GÜVENLİK KONTROLÜ: Eğer işlem sürüyorsa dur!
+    if (isProcessing) return;
+
     if (userBalance < item.price) {
       toast.error(`❌ Bakiyeniz yetersiz! Gereken: ${item.price} ₺`);
       return;
     }
 
-    toast.info(`🛒 İşlem başlatılıyor...`, { autoClose: 800 });
+    // 🔒 2. KİLİDİ KAPAT (Butona tekrar basılamaz)
+    setIsProcessing(true);
+    const toastId = toast.loading(`🛒 İşlem yapılıyor...`);
+
     try {
-        // 1. Ödeme İşlemi (Bakiye Düşürme)
+        // A. ÖDEME (Bakiye Düş)
         await api.post(`/items/buy`, {
             userId: Number(user.id),
             itemId: Number(item.id)
         });
 
-        // 🔥 2. ENVANTER KAYDI (Delivery Tablosuna Ekleme)
-        // Bu istek yapılmazsa Envanter sayfası boş görünür.
+        // B. TESLİMAT (Envantere Ekle)
+        // Eğer backend'de Deliveries modülü varsa burası envanteri doldurur
         await api.post('/deliveries', {
           itemPackageId: Number(item.id),
           userId: Number(user.id),
-          gameUserId: user.username // Oyun içi ID olarak username gönderiyoruz
+          gameUserId: user.username
         });
 
-        // 3. Local State ve Storage Güncelleme
+        // C. GÜNCELLEME
         const newBalance = userBalance - item.price;
         setUserBalance(newBalance);
         
         const updatedUser = { ...user, balance: newBalance };
         localStorage.setItem('user', JSON.stringify(updatedUser));
 
-        toast.success(`✅ Başarılı! ${item.name} alındı ve envantere eklendi.`);
+        toast.update(toastId, { render: `✅ Başarılı! ${item.name} envantere eklendi.`, type: "success", isLoading: false, autoClose: 3000 });
+        
     } catch (error) {
         console.error("Satın alma hatası:", error);
-        toast.error(error.response?.data?.message || "Satın alma başarısız!");
+        toast.update(toastId, { render: error.response?.data?.message || "Satın alma başarısız!", type: "error", isLoading: false, autoClose: 3000 });
+    } finally {
+        // 🔒 3. KİLİDİ AÇ (İşlem bitti)
+        setIsProcessing(false);
     }
   };
 
@@ -107,45 +120,27 @@ export default function AppDetail() {
       <nav style={{ backgroundColor: '#fff', padding: '15px 40px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
         <h2 style={{ margin: 0, color: '#1877f2', cursor: 'pointer', fontWeight: 'bold' }} onClick={() => navigate('/market')}>🚀 APK Market</h2>
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          <button 
-            onClick={() => navigate('/inventory')} 
-            style={{ backgroundColor: '#fff', color: '#1877f2', border: '1px solid #1877f2', padding: '10px 15px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-            🎒 Envanterim
-          </button>
+          <button onClick={() => navigate('/inventory')} style={{ backgroundColor: '#fff', color: '#1877f2', border: '1px solid #1877f2', padding: '10px 15px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>🎒 Envanterim</button>
           {isAdmin && (
-            <button 
-              onClick={() => navigate('/admin')} 
-              style={{ backgroundColor: '#fbbc04', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-              ⚙️ Yönetim
-            </button>
+            <button onClick={() => navigate('/admin')} style={{ backgroundColor: '#fbbc04', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>⚙️ Yönetim</button>
           )}
-          <div style={{ backgroundColor: '#e8f5e9', color: '#2e7d32', padding: '10px 20px', borderRadius: '15px', fontWeight: 'bold', border: '1px solid #c8e6c9', fontSize: '18px' }}>
-            💰 Cüzdan: {userBalance.toFixed(2)} ₺
-          </div>
+          <div style={{ backgroundColor: '#e8f5e9', color: '#2e7d32', padding: '10px 20px', borderRadius: '15px', fontWeight: 'bold', border: '1px solid #c8e6c9', fontSize: '18px' }}>💰 Cüzdan: {userBalance.toFixed(2)} ₺</div>
           <button onClick={() => navigate('/market')} style={{ border: 'none', background: '#f0f2f5', padding: '10px 20px', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>Geri Dön</button>
         </div>
       </nav>
 
       <div style={{ maxWidth: '1000px', margin: '30px auto', padding: '0 20px' }}>
         
-        {/* APP BILGI KARTI */}
+        {/* APP KARTI */}
         <div style={{ backgroundColor: '#ffffff', borderRadius: '25px', padding: '40px', boxShadow: '0 10px 30px rgba(0,0,0,0.08)', display: 'flex', gap: '40px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <img 
-            src={app?.imageUrl || 'https://via.placeholder.com/180?text=Uygulama'} 
-            alt={app?.name} 
-            style={{ width: '180px', height: '180px', borderRadius: '40px', objectFit: 'cover', border: '5px solid #f0f2f5', boxShadow: '0 5px 15px rgba(0,0,0,0.1)' }} 
-          />
+          <img src={app?.imageUrl || 'https://via.placeholder.com/180?text=Uygulama'} alt={app?.name} style={{ width: '180px', height: '180px', borderRadius: '40px', objectFit: 'cover', border: '5px solid #f0f2f5', boxShadow: '0 5px 15px rgba(0,0,0,0.1)' }} />
           <div style={{ flex: 1, minWidth: '300px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
               <h1 style={{ margin: 0, fontSize: '36px', color: '#1a1a1a' }}>{app?.name}</h1>
               <span style={{ backgroundColor: '#e7f3ff', color: '#1877f2', padding: '5px 15px', borderRadius: '20px', fontSize: '14px', fontWeight: 'bold' }}>v{app?.version}</span>
             </div>
             <p style={{ color: '#65676b', fontSize: '19px', marginBottom: '25px', lineHeight: '1.6' }}>{app?.description}</p>
-            <button 
-              onClick={handleDownloadApk}
-              disabled={isDownloading}
-              style={{ backgroundColor: '#00a400', color: 'white', border: 'none', padding: '15px 40px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '18px', boxShadow: '0 5px 15px rgba(0,164,0,0.3)' }}
-            >
+            <button onClick={handleDownloadApk} disabled={isDownloading} style={{ backgroundColor: '#00a400', color: 'white', border: 'none', padding: '15px 40px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '18px', boxShadow: '0 5px 15px rgba(0,164,0,0.3)' }}>
               {isDownloading ? '⌛ Hazırlanıyor...' : '📥 Ücretsiz APK İndir'}
             </button>
           </div>
@@ -163,9 +158,15 @@ export default function AppDetail() {
                 <p style={{ color: '#00a400', fontWeight: '800', fontSize: '30px', margin: '15px 0' }}>{item.price} ₺</p>
                 <button 
                   onClick={() => handleBuy(item)} 
-                  style={{ backgroundColor: '#1c1e21', color: 'white', border: 'none', padding: '15px', borderRadius: '12px', cursor: 'pointer', width: '100%', fontWeight: 'bold', fontSize: '16px' }}
+                  disabled={isProcessing} // 🔒 KİLİT BURADA
+                  style={{ 
+                    backgroundColor: isProcessing ? '#ccc' : '#1c1e21', 
+                    color: 'white', border: 'none', padding: '15px', borderRadius: '12px', 
+                    cursor: isProcessing ? 'not-allowed' : 'pointer', 
+                    width: '100%', fontWeight: 'bold', fontSize: '16px' 
+                  }}
                 >
-                  Şimdi Satın Al
+                  {isProcessing ? 'İşleniyor...' : 'Şimdi Satın Al'}
                 </button>
               </div>
             ))}
