@@ -58,21 +58,15 @@ export default function AppDetail() {
     const toastId = toast.loading(`🛒 İşlem yapılıyor...`);
 
     try {
-        // A. ÖDEME (Bakiye Düş)
+        // 🔥 TEK VE NET İSTEK 🔥
+        // Backend artık hem parayı düşüyor hem de teslimatı (delivery) kaydediyor.
+        // İkinci bir api.post('/deliveries') yazmana gerek yok!
         await api.post(`/items/buy`, {
             userId: Number(user.id),
             itemId: Number(item.id)
         });
 
-        // B. TESLİMAT (Envantere Ekle)
-        // Eğer backend'de Deliveries modülü varsa burası envanteri doldurur
-        await api.post('/deliveries', {
-          itemPackageId: Number(item.id),
-          userId: Number(user.id),
-          gameUserId: user.username
-        });
-
-        // C. GÜNCELLEME
+        // 3. Local State ve Storage Güncelleme
         const newBalance = userBalance - item.price;
         setUserBalance(newBalance);
         
@@ -158,7 +152,7 @@ export default function AppDetail() {
                 <p style={{ color: '#00a400', fontWeight: '800', fontSize: '30px', margin: '15px 0' }}>{item.price} ₺</p>
                 <button 
                   onClick={() => handleBuy(item)} 
-                  disabled={isProcessing} // 🔒 KİLİT BURADA
+                  disabled={isProcessing} // 🔒 Buton Kilitli mi?
                   style={{ 
                     backgroundColor: isProcessing ? '#ccc' : '#1c1e21', 
                     color: 'white', border: 'none', padding: '15px', borderRadius: '12px', 
