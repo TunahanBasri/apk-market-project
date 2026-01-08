@@ -9,23 +9,25 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Form State'leri
+  // Form State'leri (Orijinal Dolu Paket)
   const [newApp, setNewApp] = useState({ 
     name: '', 
     version: '1.0', 
     description: '', 
-    categoryId: '', // Kategori ID'si burada tutulacak
+    apkDownloadUrl: '', 
     imageUrl: '', 
-    apkDownloadUrl: '' 
+    categoryId: '' 
   });
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [selectedFileName, setSelectedFileName] = useState('');
+  const [editingId, setEditingId] = useState(null);
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = user.roles && user.roles.includes('ADMIN');
 
   useEffect(() => {
-    // 🛡️ ROTA KORUMASI: Sadece Admin girebilir
     if (!isAdmin) {
-      toast.error("Bu yetki sadece yöneticilerde var! 🚫");
+      toast.error("Yetkisiz Erişim!");
       navigate('/market');
       return;
     }
@@ -40,124 +42,170 @@ export default function AdminPanel() {
       ]);
       setApps(appsRes.data);
       setCategories(catsRes.data);
-      
-      // Eğer kategori varsa, ilk kategoriyi otomatik seçili yap
-      if (catsRes.data.length > 0) {
+      if (catsRes.data.length > 0 && !newApp.categoryId) {
         setNewApp(prev => ({ ...prev, categoryId: catsRes.data[0].id }));
       }
       setLoading(false);
     } catch (error) {
-      toast.error("Veriler çekilirken hata oluştu!");
-      setLoading(false);
+      toast.error("Veriler yüklenemedi!");
     }
   };
 
-  const handleCreateApp = async (e) => {
-    e.preventDefault();
-    if (!newApp.categoryId) return toast.warning("Lütfen bir kategori seçin!");
-
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return toast.warning("Kategori adı boş olamaz!");
     try {
-      const payload = { 
-        ...newApp, 
-        categories: { 
-          connect: [{ id: Number(newApp.categoryId) }] 
-        } 
-      };
-      // categoryId alanını temizliyoruz çünkü connect yapısı içinde gönderdik
-      const { categoryId, ...finalData } = payload;
-
-      await api.post('/apps', finalData);
-      toast.success("🚀 Uygulama başarıyla eklendi!");
-      fetchData(); // Listeyi tazele
-      setNewApp({ ...newApp, name: '', description: '', imageUrl: '', apkDownloadUrl: '' });
-    } catch (err) {
-      toast.error("Ekleme sırasında bir hata oluştu.");
-    }
-  };
-
-  const handleDeleteApp = async (id) => {
-    if (!window.confirm("Bu uygulamayı silmek istediğinize emin misiniz?")) return;
-    try {
-      await api.delete(`/apps/${id}`);
-      toast.success("Silindi.");
+      await api.post('/apps/categories', { name: newCategoryName });
+      toast.success(`✅ Kategori eklendi!`);
+      setNewCategoryName('');
       fetchData();
-    } catch (err) {
-      toast.error("Silme başarısız.");
+    } catch (error) { toast.error("Hata!"); }
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const maxWidth = 800;
+        const scaleFactor = maxWidth / img.width;
+        canvas.width = (img.width > maxWidth) ? maxWidth : img.width;
+        canvas.height = (img.width > maxWidth) ? img.height * scaleFactor : img.height;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        setNewApp({ ...newApp, imageUrl: canvas.toDataURL('image/jpeg', 0.7) });
+        toast.info("📸 Kapak resmi işlendi!");
+      };
+    };
+  };
+
+  const handleApkSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) return toast.warning("Max 10MB!");
+      setSelectedFileName(file.name);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setNewApp({ ...newApp, apkDownloadUrl: event.target.result });
+        toast.success(`📂 APK hazır!`);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  if (loading) return <div style={{ padding: 100, textAlign: 'center' }}>⚙️ Kontrol Ediliyor...</div>;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const payload = {
+      ...newApp,
+      categories: { connect: [{ id: Number(newApp.categoryId) }] }
+    };
+    const { categoryId, ...finalData } = payload;
+
+    try {
+      if (editingId) {
+        await api.patch(`/apps/${editingId}`, finalData);
+        toast.success('Güncellendi! ✅');
+      } else {
+        await api.post('/apps', finalData);
+        toast.success('Yayınlandı! 🚀');
+      }
+      resetForm();
+      fetchData();
+    } catch (error) { toast.error('İşlem başarısız!'); }
+  };
+
+  const resetForm = () => {
+    setNewApp({ name: '', version: '1.0', description: '', apkDownloadUrl: '', imageUrl: '', categoryId: categories[0]?.id || '' });
+    setSelectedFileName('');
+    setEditingId(null);
+  };
+
+  if (loading) return <div style={{ padding: 100, textAlign: 'center' }}>🚀 Yükleniyor...</div>;
 
   return (
-    <div style={{ padding: '40px', backgroundColor: '#f4f7f6', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+    <div style={{ fontFamily: "'Segoe UI', sans-serif", backgroundColor: '#f4f6f9', minHeight: '100vh', padding: '40px' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-          <h1 style={{ color: '#2c3e50', margin: 0 }}>⚒️ Uygulama Yönetimi</h1>
-          <button onClick={() => navigate('/market')} style={secondaryBtnStyle}>
-            ⬅ Markete Dön
-          </button>
+          <h2 style={{ color: '#1a73e8', margin: 0 }}>⚙️ Uygulama Yönetim Merkezi</h2>
+          <button onClick={() => navigate('/market')} style={{ padding: '10px 25px', backgroundColor: '#1a73e8', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>Markete Dön</button>
         </header>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
-          {/* EKLEME FORMU */}
-          <div style={cardStyle}>
-            <h3 style={{ marginTop: 0 }}>📥 Yeni Uygulama Ekle</h3>
-            <form onSubmit={handleCreateApp} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <label style={labelStyle}>Uygulama Adı</label>
-              <input value={newApp.name} onChange={e => setNewApp({...newApp, name: e.target.value})} style={inputStyle} required />
-              
-              <label style={labelStyle}>Kategori Seçin</label>
-              <select 
-                value={newApp.categoryId} 
-                onChange={e => setNewApp({...newApp, categoryId: e.target.value})} 
-                style={inputStyle}
-                required
-              >
-                {categories.length === 0 && <option>Önce kategori oluşturun</option>}
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
-
-              <label style={labelStyle}>Görsel Linki (URL)</label>
-              <input value={newApp.imageUrl} onChange={e => setNewApp({...newApp, imageUrl: e.target.value})} style={inputStyle} placeholder="https://..." />
-              
-              <label style={labelStyle}>Açıklama</label>
-              <textarea value={newApp.description} onChange={e => setNewApp({...newApp, description: e.target.value})} style={{...inputStyle, height: '80px'}} />
-              
-              <button type="submit" style={primaryBtnStyle}>
-                🚀 Markete Ekle
-              </button>
-            </form>
-          </div>
-
-          {/* MEVCUT LİSTE */}
-          <div style={cardStyle}>
-            <h3 style={{ marginTop: 0 }}>📋 Yayındaki Uygulamalar</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {apps.map(app => (
-                <div key={app.id} style={listItemStyle}>
-                  <div>
-                    <strong style={{ display: 'block' }}>{app.name}</strong>
-                    <span style={{ fontSize: '12px', color: '#1a73e8' }}>{app.categories?.[0]?.name || 'Kategorisiz'}</span>
-                  </div>
-                  <button onClick={() => handleDeleteApp(app.id)} style={deleteBtnStyle}>Sil</button>
-                </div>
-              ))}
-              {apps.length === 0 && <p style={{color: '#888'}}>Henüz uygulama eklenmemiş.</p>}
+        {/* ANA FORM ALANI */}
+        <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', marginBottom: '40px' }}>
+          <h3 style={{ marginBottom: '20px' }}>{editingId ? '✏️ Uygulamayı Düzenle' : '➕ Yeni Uygulama Ekle'}</h3>
+          <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            
+            <div style={{display:'flex', flexDirection:'column', gap:'5px'}}>
+                <label style={labelStyle}>Uygulama Adı</label>
+                <input value={newApp.name} onChange={e => setNewApp({ ...newApp, name: e.target.value })} required style={inputStyle} />
             </div>
+
+            <div style={{display:'flex', flexDirection:'column', gap:'5px'}}>
+                <label style={labelStyle}>Sürüm (v1.0)</label>
+                <input value={newApp.version} onChange={e => setNewApp({ ...newApp, version: e.target.value })} required style={inputStyle} />
+            </div>
+
+            <div style={{ gridColumn: 'span 2', display: 'flex', gap: '15px', alignItems: 'flex-end', backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '12px', border: '1px dashed #ccc' }}>
+              <div style={{ flex: 1 }}>
+                <label style={labelStyle}>📂 Kategori Seç</label>
+                <select value={newApp.categoryId} onChange={e => setNewApp({ ...newApp, categoryId: e.target.value })} style={{ ...inputStyle, width: '100%', backgroundColor: 'white' }}>
+                  {categories.map(cat => (<option key={cat.id} value={cat.id}>{cat.name}</option>))}
+                </select>
+              </div>
+              <div style={{ flex: 1, display: 'flex', gap: '10px' }}>
+                <input placeholder="Yeni Kategori..." value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+                <button type="button" onClick={handleAddCategory} style={{ backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '8px', padding: '0 20px', fontWeight: 'bold', cursor: 'pointer' }}>Ekle</button>
+              </div>
+            </div>
+
+            <div style={fileBoxStyle}>
+              <label style={labelStyle}>🖼️ Kapak Resmi</label>
+              <input type="file" accept="image/*" onChange={handleImageUpload} />
+            </div>
+
+            <div style={fileBoxStyle}>
+              <label style={labelStyle}>📦 APK Dosyası</label>
+              <input type="file" accept=".apk" onChange={handleApkSelect} />
+              {selectedFileName && <small style={{color:'#28a745'}}>✅ {selectedFileName}</small>}
+            </div>
+
+            <div style={{gridColumn: 'span 2'}}>
+                <label style={labelStyle}>Açıklama</label>
+                <textarea value={newApp.description} onChange={e => setNewApp({ ...newApp, description: e.target.value })} style={{ ...inputStyle, width: '100%', height: '80px', resize:'none' }} />
+            </div>
+
+            <button type="submit" style={{ gridColumn: 'span 2', padding: '15px', backgroundColor: editingId ? '#ffc107' : '#1a73e8', color: editingId ? '#333' : 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px' }}>
+              {editingId ? 'Değişiklikleri Kaydet' : 'Uygulamayı Yayınla'}
+            </button>
+          </form>
+        </div>
+
+        {/* LİSTELEME ALANI */}
+        <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
+          <h3 style={{ marginBottom: '20px' }}>📋 Mevcut Uygulamalar</h3>
+          <div style={{ display: 'grid', gap: '10px' }}>
+            {apps.map(app => (
+              <div key={app.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '12px' }}>
+                <span><strong>{app.name}</strong> - v{app.version}</span>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={() => { setEditingId(app.id); setNewApp({...app, categoryId: app.categories[0]?.id}); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px' }}>✏️</button>
+                  <button onClick={async () => { if(window.confirm("Sil?")){ await api.delete(`/apps/${app.id}`); fetchData(); } }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px' }}>🗑️</button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
+
       </div>
     </div>
   );
 }
 
-// Görsel Nesneler
-const cardStyle = { backgroundColor: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' };
-const inputStyle = { padding: '12px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '14px', outline: 'none' };
-const labelStyle = { fontSize: '12px', fontWeight: 'bold', color: '#555', marginBottom: '-10px' };
-const primaryBtnStyle = { padding: '15px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' };
-const secondaryBtnStyle = { padding: '10px 20px', backgroundColor: '#1877f2', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' };
-const deleteBtnStyle = { padding: '6px 12px', backgroundColor: '#fff', color: '#dc3545', border: '1px solid #dc3545', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' };
-const listItemStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '10px' };
+const inputStyle = { padding: '12px', borderRadius: '10px', border: '1px solid #ddd', fontSize: '14px', outline: 'none' };
+const labelStyle = { fontSize: '12px', fontWeight: 'bold', color: '#666', marginBottom: '2px' };
+const fileBoxStyle = { display: 'flex', flexDirection: 'column', gap: '5px', backgroundColor: '#f8f9fa', padding: '15px', borderRadius: '12px', border: '1px solid #eee' };
