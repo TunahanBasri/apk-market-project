@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -10,8 +10,8 @@ export class ItemsService {
       data: {
         name: data.name,
         description: data.description,
-        price: parseFloat(data.price), // Fiyatı sayıya çevir
-        appId: parseInt(data.appId),   // ID'yi sayıya çevir
+        price: parseFloat(data.price),
+        appId: parseInt(data.appId),
       },
     });
   }
@@ -26,14 +26,37 @@ export class ItemsService {
     return this.prisma.itemPackage.delete({ where: { id } });
   }
 
-  // --- 🔥 YENİ: SATIN ALMA KAYDI OLUŞTURMA ---
+  // --- 🔥 FİNAL DÜZELTME: İSİM 'buyItem' OLARAK GÜNCELLENDİ ---
   async buyItem(userId: number, itemPackageId: number) {
-    return this.prisma.delivery.create({
-      data: {
-        userId: userId,           // Kim aldı?
-        itemPackageId: itemPackageId, // Ne aldı?
-        gameUserId: "Player_" + userId, // (Simülasyon) Oyundaki ID'si ne?
-      }
+    
+    // 1. Verileri Bul
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const item = await this.prisma.itemPackage.findUnique({ where: { id: itemPackageId } });
+
+    // 2. Kontroller
+    if (!user) throw new BadRequestException('Kullanıcı bulunamadı');
+    if (!item) throw new BadRequestException('Paket bulunamadı');
+    if (user.balance < item.price) throw new BadRequestException('Yetersiz Bakiye!');
+
+    // 3. TRANSACTION (Atomik İşlem)
+    return this.prisma.$transaction(async (tx) => {
+      
+      // A. Parayı Düş
+      await tx.user.update({
+        where: { id: userId },
+        data: { balance: user.balance - item.price }
+      });
+
+      // B. Envantere Ekle (Delivery)
+      const delivery = await tx.delivery.create({
+        data: {
+          userId: userId,
+          itemPackageId: itemPackageId,
+          gameUserId: user.username, 
+        }
+      });
+
+      return delivery;
     });
   }
 }
