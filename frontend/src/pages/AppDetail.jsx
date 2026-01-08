@@ -11,19 +11,15 @@ export default function AppDetail() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
-  
-  // 💰 Bakiye State'i
   const [userBalance, setUserBalance] = useState(0);
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  // Admin kontrolünü sadece Navbar'da yönlendirme butonu göstermek için kullanıyoruz
   const isAdmin = user.roles && user.roles.includes('ADMIN');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) { navigate('/login'); return; }
     
-    // Kullanıcının güncel bakiyesini local'den çek
     setUserBalance(user.balance || 0);
     fetchData();
   }, [id]);
@@ -53,20 +49,30 @@ export default function AppDetail() {
 
     toast.info(`🛒 İşlem başlatılıyor...`, { autoClose: 800 });
     try {
+        // 1. Ödeme İşlemi (Bakiye Düşürme)
         await api.post(`/items/buy`, {
             userId: Number(user.id),
             itemId: Number(item.id)
         });
 
+        // 🔥 2. ENVANTER KAYDI (Delivery Tablosuna Ekleme)
+        // Bu istek yapılmazsa Envanter sayfası boş görünür.
+        await api.post('/deliveries', {
+          itemPackageId: Number(item.id),
+          userId: Number(user.id),
+          gameUserId: user.username // Oyun içi ID olarak username gönderiyoruz
+        });
+
+        // 3. Local State ve Storage Güncelleme
         const newBalance = userBalance - item.price;
         setUserBalance(newBalance);
         
-        // Diğer sayfalarla senkronize olması için localStorage'ı güncelle
         const updatedUser = { ...user, balance: newBalance };
         localStorage.setItem('user', JSON.stringify(updatedUser));
 
-        toast.success(`✅ Başarılı! ${item.name} alındı. Yeni Bakiye: ${newBalance.toFixed(2)} ₺`);
+        toast.success(`✅ Başarılı! ${item.name} alındı ve envantere eklendi.`);
     } catch (error) {
+        console.error("Satın alma hatası:", error);
         toast.error(error.response?.data?.message || "Satın alma başarısız!");
     }
   };
@@ -97,10 +103,15 @@ export default function AppDetail() {
   return (
     <div style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", backgroundColor: '#f0f2f5', minHeight: '100vh', padding: '0 0 40px 0' }}>
       
-      {/* 💰 NAVBAR & BAKIYE */}
+      {/* NAVBAR */}
       <nav style={{ backgroundColor: '#fff', padding: '15px 40px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
         <h2 style={{ margin: 0, color: '#1877f2', cursor: 'pointer', fontWeight: 'bold' }} onClick={() => navigate('/market')}>🚀 APK Market</h2>
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+          <button 
+            onClick={() => navigate('/inventory')} 
+            style={{ backgroundColor: '#fff', color: '#1877f2', border: '1px solid #1877f2', padding: '10px 15px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+            🎒 Envanterim
+          </button>
           {isAdmin && (
             <button 
               onClick={() => navigate('/admin')} 
