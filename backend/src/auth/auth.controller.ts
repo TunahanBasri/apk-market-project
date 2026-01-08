@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, Request, Param } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
 
@@ -21,5 +21,11 @@ export class AuthController {
   @Get('profile')
   getProfile(@Request() req) {
     return req.user;
+  }
+
+  // --- 🔥 YENİ: GÜNCEL KULLANICI BAKİYESİNİ ÇEKMEK İÇİN ---
+  @Get('user/:id')
+  async getUser(@Param('id') id: string) {
+    return this.authService.getUserById(+id);
   }
 }

@@ -10,30 +10,31 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  // GİRİŞ YAPMA (LOGIN)
+  // 🔥 GÜNCELLENDİ: ARTIK EMAIL İLE GİRİŞ YAPILIYOR
   async login(body: any) {
-    const { username, password } = body;
+    // 1. Frontend'den artık 'email' ve 'password' alıyoruz
+    const { email, password } = body;
 
-    // 1. Kullanıcıyı bul
+    // 2. Kullanıcıyı EMAIL adresine göre bul (Eskiden username idi)
     const user = await this.prisma.user.findUnique({
-      where: { username },
+      where: { email: email }, // 👈 Kritik değişiklik burası
       include: { roles: true },
     });
 
     if (!user) {
-      throw new UnauthorizedException('Kullanıcı bulunamadı');
+      throw new UnauthorizedException('Bu email adresiyle kayıtlı kullanıcı bulunamadı');
     }
 
-    // 2. Şifreyi kontrol et
+    // 3. Şifreyi kontrol et (Aynı kalıyor)
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Şifre hatalı');
     }
 
-    // 3. Token oluştur
+    // 4. Token oluştur
     const payload = { 
       sub: user.id, 
-      username: user.username, 
+      username: user.username, // Token içinde username durabilir, ekranda göstermek için lazım
       roles: user.roles.map(r => r.name) 
     };
 
@@ -43,12 +44,13 @@ export class AuthService {
         id: user.id,
         username: user.username,
         email: user.email,
+        balance: user.balance, 
         roles: user.roles.map(r => r.name)
       }
     };
   }
 
-  // KAYIT OLMA (REGISTER)
+  // KAYIT OLMA (REGISTER) - AYNI KALIYOR
   async register(body: any) {
     const { username, email, password } = body;
 
@@ -67,12 +69,9 @@ export class AuthService {
     // USER rolünü bul
     const userRole = await this.prisma.role.findUnique({ where: { name: 'USER' } });
 
-    // --- HATA DÜZELTME KISMI ---
-    // Eğer veritabanında USER rolü yoksa hata fırlat (TypeScript null hatasını önler)
     if (!userRole) {
-      throw new InternalServerErrorException('Sistemde USER rolü tanımlı değil. Lütfen yönetici ile iletişime geçin.');
+      throw new InternalServerErrorException('Sistemde USER rolü tanımlı değil.');
     }
-    // ---------------------------
 
     // Kaydet
     const newUser = await this.prisma.user.create({
@@ -81,11 +80,18 @@ export class AuthService {
         email,
         password: hashedPassword,
         roles: {
-          connect: { id: userRole.id }, // Artık userRole kesinlikle var, hata vermez.
+          connect: { id: userRole.id },
         },
       },
     });
 
     return { message: 'Kayıt başarılı', userId: newUser.id };
+  }
+
+  // ID İLE KULLANICI GETİR
+  async getUserById(id: number) {
+    return this.prisma.user.findUnique({
+      where: { id: id },
+    });
   }
 }

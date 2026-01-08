@@ -23,19 +23,37 @@ export default function AppDetail() {
     const token = localStorage.getItem('token');
     if (!token) { navigate('/login'); return; }
     
+    // İlk başta localStorage'dan alıyoruz (Hızlı görünsün diye)
     setUserBalance(user.balance || 0);
+    
+    // Ama hemen arkasından veritabanından doğrusunu çekiyoruz
     fetchData();
   }, [id]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [appRes, itemsRes] = await Promise.all([
-        api.get(`/apps/${id}`),
-        api.get(`/items/app/${id}`)
+      
+      // 🔥 BURASI DEĞİŞTİ: Artık kullanıcıyı da güncel çekiyoruz
+      const [appRes, itemsRes, userRes] = await Promise.all([
+        api.get(`/apps/${id}`),           // Uygulama bilgileri
+        api.get(`/items/app/${id}`),      // Paketler
+        api.get(`/auth/user/${user.id}`)  // 👈 YENİ: Güncel Bakiye Sorgusu
       ]);
+
       setApp(appRes.data);
       setItems(itemsRes.data || []);
+      
+      // 💰 Bakiyeyi Güncelle (Veritabanından gelen gerçek veri)
+      if (userRes.data) {
+        const freshBalance = userRes.data.balance;
+        setUserBalance(freshBalance);
+
+        // Diğer sayfalar (Navbar vb.) için LocalStorage'ı da güncelle
+        const updatedUser = { ...user, balance: freshBalance };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+
     } catch (error) { 
       console.error("Detay hatası:", error);
       toast.error("Veriler yüklenirken bir hata oluştu.");
@@ -45,7 +63,7 @@ export default function AppDetail() {
   };
 
   const handleBuy = async (item) => {
-    // 🔒 1. GÜVENLİK KONTROLÜ: Eğer işlem sürüyorsa dur!
+    // 🔒 1. GÜVENLİK KONTROLÜ
     if (isProcessing) return;
 
     if (userBalance < item.price) {
@@ -53,20 +71,18 @@ export default function AppDetail() {
       return;
     }
 
-    // 🔒 2. KİLİDİ KAPAT (Butona tekrar basılamaz)
+    // 🔒 2. KİLİDİ KAPAT
     setIsProcessing(true);
     const toastId = toast.loading(`🛒 İşlem yapılıyor...`);
 
     try {
-        // 🔥 TEK VE NET İSTEK 🔥
-        // Backend artık hem parayı düşüyor hem de teslimatı (delivery) kaydediyor.
-        // İkinci bir api.post('/deliveries') yazmana gerek yok!
+        // Backend işlemi (Para düşer, ürün gelir)
         await api.post(`/items/buy`, {
             userId: Number(user.id),
             itemId: Number(item.id)
         });
 
-        // 3. Local State ve Storage Güncelleme
+        // 3. Frontend Güncellemesi
         const newBalance = userBalance - item.price;
         setUserBalance(newBalance);
         
@@ -79,7 +95,7 @@ export default function AppDetail() {
         console.error("Satın alma hatası:", error);
         toast.update(toastId, { render: error.response?.data?.message || "Satın alma başarısız!", type: "error", isLoading: false, autoClose: 3000 });
     } finally {
-        // 🔒 3. KİLİDİ AÇ (İşlem bitti)
+        // 🔒 3. KİLİDİ AÇ
         setIsProcessing(false);
     }
   };
@@ -152,7 +168,7 @@ export default function AppDetail() {
                 <p style={{ color: '#00a400', fontWeight: '800', fontSize: '30px', margin: '15px 0' }}>{item.price} ₺</p>
                 <button 
                   onClick={() => handleBuy(item)} 
-                  disabled={isProcessing} // 🔒 Buton Kilitli mi?
+                  disabled={isProcessing} // 🔒 KİLİT BURADA
                   style={{ 
                     backgroundColor: isProcessing ? '#ccc' : '#1c1e21', 
                     color: 'white', border: 'none', padding: '15px', borderRadius: '12px', 
