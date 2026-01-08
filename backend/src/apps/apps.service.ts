@@ -19,11 +19,8 @@ export class AppsService {
         description: data.description,
         apkDownloadUrl: data.apkDownloadUrl,
         imageUrl: data.imageUrl,
-        
-        // Kategori bağlantısı (Varsa bağla)
-        categories: data.categoryId ? {
-            connect: { id: parseInt(data.categoryId) } 
-        } : undefined,
+        // Frontend'den gelen categories: { connect: [...] } yapısını doğrudan kullanıyoruz
+        categories: data.categories, 
       },
     });
   }
@@ -35,7 +32,6 @@ export class AppsService {
     });
   }
 
-  // --- 🔥 YENİ EKLENEN UPDATE FONKSİYONU ---
   async update(id: number, data: any) {
     return this.prisma.app.update({
       where: { id },
@@ -45,16 +41,11 @@ export class AppsService {
         description: data.description,
         apkDownloadUrl: data.apkDownloadUrl,
         imageUrl: data.imageUrl,
-
-        // Kategori güncellenirse eskileri sil, yenisini bağla
-        categories: data.categoryId ? {
-            set: [], // Önceki bağlantıları kopar
-            connect: { id: parseInt(data.categoryId) } // Yenisini bağla
-        } : undefined,
+        // Frontend'den gelen categories: { set: [], connect: [...] } yapısını doğrudan kullanıyoruz
+        categories: data.categories,
       },
     });
   }
-  // -----------------------------------------
 
   async delete(id: number) {
     return this.prisma.app.delete({

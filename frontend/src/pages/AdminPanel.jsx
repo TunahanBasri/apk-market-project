@@ -9,14 +9,13 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Form State'leri
   const [newApp, setNewApp] = useState({ 
     name: '', 
     version: '1.0', 
     description: '', 
     apkDownloadUrl: '', 
     imageUrl: '', 
-    selectedCategoryIds: [] // Çoklu seçim için dizi
+    selectedCategoryIds: [] 
   });
   const [newCategoryName, setNewCategoryName] = useState('');
   const [selectedFileName, setSelectedFileName] = useState('');
@@ -48,7 +47,6 @@ export default function AdminPanel() {
     }
   };
 
-  // Kategori Seçme/Kaldırma Fonksiyonu
   const handleCategoryToggle = (id) => {
     setNewApp(prev => {
       const isSelected = prev.selectedCategoryIds.includes(id);
@@ -109,6 +107,7 @@ export default function AdminPanel() {
     e.preventDefault();
     if (newApp.selectedCategoryIds.length === 0) return toast.warning("En az bir kategori seçin!");
 
+    // 🔥 KRİTİK DÜZELTME: Backend'in include edebilmesi için doğru Prisma formatı
     const payload = {
       name: newApp.name,
       version: newApp.version,
@@ -116,7 +115,7 @@ export default function AdminPanel() {
       apkDownloadUrl: newApp.apkDownloadUrl,
       imageUrl: newApp.imageUrl,
       categories: {
-        set: [], // Öncekileri temizle (update için kritik)
+        set: editingId ? [] : undefined, // Update ise eski bağları kopar
         connect: newApp.selectedCategoryIds.map(id => ({ id: Number(id) }))
       }
     };
@@ -165,7 +164,6 @@ export default function AdminPanel() {
           <button onClick={() => navigate('/market')} style={{ padding: '12px 25px', backgroundColor: '#1a73e8', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 12px rgba(26,115,232,0.3)' }}>Markete Dön</button>
         </header>
 
-        {/* FORM ALANI */}
         <div style={{ backgroundColor: 'white', padding: '35px', borderRadius: '25px', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', marginBottom: '40px', border: editingId ? '2px solid #ffc107' : 'none' }}>
           <h3 style={{ marginBottom: '25px', color: '#333' }}>{editingId ? '✏️ Uygulamayı Düzenle' : '➕ Yeni Uygulama Yayınla'}</h3>
           <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
@@ -180,7 +178,6 @@ export default function AdminPanel() {
                 <input value={newApp.version} onChange={e => setNewApp({ ...newApp, version: e.target.value })} required style={inputStyle} placeholder="v1.0.0" />
             </div>
 
-            {/* ÇOKLU KATEGORİ SEÇİM ALANI */}
             <div style={{ gridColumn: 'span 2', backgroundColor: '#f8f9fa', padding: '25px', borderRadius: '18px', border: '1px dashed #cbd5e0' }}>
               <label style={{...labelStyle, display:'block', marginBottom:'15px'}}>📂 Kategorileri Seç (Birden fazla seçebilirsin)</label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
@@ -240,7 +237,6 @@ export default function AdminPanel() {
           </form>
         </div>
 
-        {/* LİSTELEME */}
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '25px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <h3 style={{ marginBottom: '25px', color: '#333' }}>📋 Yayındaki Uygulamalar ({apps.length})</h3>
           <div style={{ display: 'grid', gap: '12px' }}>
@@ -261,16 +257,13 @@ export default function AdminPanel() {
                 </div>
               </div>
             ))}
-            {apps.length === 0 && <div style={{textAlign:'center', padding:'40px', color:'#a0aec0'}}>Henüz uygulama eklenmemiş.</div>}
           </div>
         </div>
-
       </div>
     </div>
   );
 }
 
-// Görsel Nesneler
-const inputStyle = { padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none', transition: '0.2s border' };
+const inputStyle = { padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none' };
 const labelStyle = { fontSize: '13px', fontWeight: 'bold', color: '#4a5568', marginLeft: '4px' };
 const fileBoxStyle = { display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: '#f8f9fa', padding: '15px', borderRadius: '15px', border: '1px solid #e2e8f0' };
