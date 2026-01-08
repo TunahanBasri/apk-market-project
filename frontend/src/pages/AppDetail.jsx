@@ -14,16 +14,16 @@ export default function AppDetail() {
   
   // 💰 Bakiye State'i
   const [userBalance, setUserBalance] = useState(0);
-  const [newItem, setNewItem] = useState({ name: '', description: '', price: '' });
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  // Admin kontrolünü sadece Navbar'da yönlendirme butonu göstermek için kullanıyoruz
   const isAdmin = user.roles && user.roles.includes('ADMIN');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) { navigate('/login'); return; }
     
-    // Kullanıcının güncel bakiyesini localStorage'dan başlat
+    // Kullanıcının güncel bakiyesini local'den çek
     setUserBalance(user.balance || 0);
     fetchData();
   }, [id]);
@@ -45,31 +45,7 @@ export default function AppDetail() {
     }
   };
 
-  const handleAddItem = async (e) => {
-    e.preventDefault();
-    try {
-      await api.post(`/items`, { 
-        ...newItem, 
-        price: Number(newItem.price), 
-        appId: Number(id) 
-      });
-      toast.success('💎 Yeni paket mağazaya eklendi!');
-      setNewItem({ name: '', description: '', price: '' });
-      fetchData();
-    } catch (error) { toast.error('Ekleme başarısız!'); }
-  };
-
-  const handleDeleteItem = async (itemId) => {
-    if(!window.confirm("Bu paketi silmek istediğinize emin misiniz?")) return;
-    try {
-        await api.delete(`/items/${itemId}`);
-        toast.success('🗑️ Paket silindi.');
-        fetchData();
-    } catch (error) { toast.error('Silme başarısız!'); }
-  };
-
   const handleBuy = async (item) => {
-    // 🛑 Para kontrolü
     if (userBalance < item.price) {
       toast.error(`❌ Bakiyeniz yetersiz! Gereken: ${item.price} ₺`);
       return;
@@ -82,16 +58,16 @@ export default function AppDetail() {
             itemId: Number(item.id)
         });
 
-        // ✅ Bakiye düşürme ve güncelleme
         const newBalance = userBalance - item.price;
         setUserBalance(newBalance);
         
+        // Diğer sayfalarla senkronize olması için localStorage'ı güncelle
         const updatedUser = { ...user, balance: newBalance };
         localStorage.setItem('user', JSON.stringify(updatedUser));
 
         toast.success(`✅ Başarılı! ${item.name} alındı. Yeni Bakiye: ${newBalance.toFixed(2)} ₺`);
     } catch (error) {
-        toast.error(error.response?.data?.message || "Bakiye yetersiz!");
+        toast.error(error.response?.data?.message || "Satın alma başarısız!");
     }
   };
 
@@ -124,7 +100,14 @@ export default function AppDetail() {
       {/* 💰 NAVBAR & BAKIYE */}
       <nav style={{ backgroundColor: '#fff', padding: '15px 40px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
         <h2 style={{ margin: 0, color: '#1877f2', cursor: 'pointer', fontWeight: 'bold' }} onClick={() => navigate('/market')}>🚀 APK Market</h2>
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+          {isAdmin && (
+            <button 
+              onClick={() => navigate('/admin')} 
+              style={{ backgroundColor: '#fbbc04', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+              ⚙️ Yönetim
+            </button>
+          )}
           <div style={{ backgroundColor: '#e8f5e9', color: '#2e7d32', padding: '10px 20px', borderRadius: '15px', fontWeight: 'bold', border: '1px solid #c8e6c9', fontSize: '18px' }}>
             💰 Cüzdan: {userBalance.toFixed(2)} ₺
           </div>
@@ -159,25 +142,11 @@ export default function AppDetail() {
 
         {/* PAKETLER */}
         <div style={{ marginTop: '50px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom: '2px solid #eee', paddingBottom: '15px' }}>
-            <h2 style={{ color: '#1c1e21', margin: 0 }}>💎 Uygulama İçi Paketler</h2>
-            {isAdmin && <span style={{ color: '#1877f2', fontWeight: 'bold' }}>Yönetici Modu</span>}
-          </div>
-
-          {isAdmin && (
-            <div style={{ backgroundColor: '#fff', padding: '25px', borderRadius: '20px', marginBottom: '30px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
-              <h4 style={{ margin: '0 0 20px 0' }}>➕ Yeni Paket Tanımla</h4>
-              <form onSubmit={handleAddItem} style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                <input placeholder="Paket Adı" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: '1px solid #ddd', flex: 3 }} required />
-                <input type="number" placeholder="Fiyat" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: '1px solid #ddd', flex: 1 }} required />
-                <button type="submit" style={{ backgroundColor: '#1877f2', color: 'white', border: 'none', padding: '12px 30px', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>Paketi Yayınla</button>
-              </form>
-            </div>
-          )}
+          <h2 style={{ color: '#1c1e21', margin: '0 0 25px 0', borderBottom: '2px solid #eee', paddingBottom: '15px' }}>💎 Uygulama İçi Paketler</h2>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '30px' }}>
             {items.map(item => (
-              <div key={item.id} style={{ backgroundColor: 'white', padding: '35px', borderRadius: '22px', boxShadow: '0 6px 20px rgba(0,0,0,0.04)', textAlign: 'center', position: 'relative', border: '1px solid #f0f0f0', transition: 'transform 0.3s' }}>
+              <div key={item.id} style={{ backgroundColor: 'white', padding: '35px', borderRadius: '22px', boxShadow: '0 6px 20px rgba(0,0,0,0.04)', textAlign: 'center', border: '1px solid #f0f0f0', transition: 'transform 0.3s' }}>
                 <div style={{ fontSize: '50px', marginBottom: '15px' }}>💎</div>
                 <h3 style={{ margin: '0 0 10px 0', fontSize: '22px' }}>{item.name}</h3>
                 <p style={{ color: '#00a400', fontWeight: '800', fontSize: '30px', margin: '15px 0' }}>{item.price} ₺</p>
@@ -187,11 +156,9 @@ export default function AppDetail() {
                 >
                   Şimdi Satın Al
                 </button>
-                {isAdmin && (
-                  <button onClick={() => handleDeleteItem(item.id)} style={{ position: 'absolute', top: '15px', right: '15px', background: '#fff0f0', border: 'none', color: '#e74c3c', cursor: 'pointer', width: '35px', height: '35px', borderRadius: '50%', fontWeight: 'bold' }}>🗑️</button>
-                )}
               </div>
             ))}
+            {items.length === 0 && <p style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', color: '#888' }}>Bu uygulama için henüz paket eklenmemiş.</p>}
           </div>
         </div>
       </div>
