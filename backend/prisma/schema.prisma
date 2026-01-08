@@ -1,5 +1,3 @@
-// backend/prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,72 +7,71 @@ datasource db {
   url      = "file:./dev.db"
 }
 
-// --- KULLANICI VE ROL (N:M İlişki) ---
+// --- KULLANICI VE ROL ---
 model User {
   id        Int      @id @default(autoincrement())
   username  String   @unique
   email     String   @unique
   password  String
+  
+  // 💰 Her yeni üyeye otomatik 100 TL bakiye
+  balance   Float    @default(100.0) 
+  
   createdAt DateTime @default(now())
-
-  roles      Role[]
+  
   deliveries Delivery[]
+  roles      Role[]     @relation("RoleToUser")
 }
 
 model Role {
-  id   Int    @id @default(autoincrement())
-  name String @unique 
-
-  users User[]
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  users User[] @relation("RoleToUser")
 }
 
-// --- UYGULAMA VE KATEGORİ (N:M İlişki) ---
+// --- UYGULAMA VE KATEGORİ ---
 model App {
   id             Int      @id @default(autoincrement())
   name           String
   version        String
   description    String?
-  apkDownloadUrl String?  
-  
-  // --- YENİ EKLENEN SATIR ---
-  imageUrl       String?  // (Soru işareti koyduk ki boş bırakılırsa hata vermesin)
-  // --------------------------
-
+  apkDownloadUrl String?
+  imageUrl       String?
   createdAt      DateTime @default(now())
-
-  categories     Category[]
+  
   itemPackages   ItemPackage[]
+  categories     Category[]    @relation("AppToCategory")
 }
 
 model Category {
   id   Int    @id @default(autoincrement())
   name String @unique
-
-  apps App[]
+  apps App[]  @relation("AppToCategory")
 }
 
-// --- EŞYA PAKETLERİ (1:N İlişki) ---
+// --- EŞYA PAKETLERİ ---
 model ItemPackage {
   id          Int      @id @default(autoincrement())
   name        String
   description String?
-  price       Decimal 
-   
+  
+  // 💸 Ürün fiyatı
+  price       Float    
+  
   appId       Int
   app         App      @relation(fields: [appId], references: [id], onDelete: Cascade)
-
   deliveries  Delivery[]
 }
 
-// --- TESLİMAT / SİPARİŞ GEÇMİŞİ ---
+// --- SİPARİŞ / TESLİMAT GEÇMİŞİ ---
 model Delivery {
-  id           Int      @id @default(autoincrement())
-  gameUserId   String   
-  createdAt    DateTime @default(now())
-
-  userId       Int
-  user         User     @relation(fields: [userId], references: [id])
-
+  id            Int      @id @default(autoincrement())
+  gameUserId    String
+  createdAt     DateTime @default(now())
+  
+  userId        Int
   itemPackageId Int
+  
   itemPackage   ItemPackage @relation(fields: [itemPackageId], references: [id])
+  user          User        @relation(fields: [userId], references: [id])
 }

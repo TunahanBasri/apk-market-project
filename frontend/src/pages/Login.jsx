@@ -1,8 +1,7 @@
 import { useState } from 'react';
-// 1. Standart axios yerine kendi oluşturduğun api nesnesini import et
-// Not: api.js dosyanın konumuna göre yolu (../api/axios vb.) kontrol et
 import api from '../api/axios'; 
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify'; // Alert yerine daha şık bildirimler için
 
 export default function Login() {
   const [isLogin, setIsLogin] = useState(true);
@@ -13,25 +12,34 @@ export default function Login() {
     e.preventDefault();
     try {
       if (isLogin) {
-        // 2. URL'yi artık sadece endpoint (/auth/login) olarak yazıyoruz
+        // --- GİRİŞ YAPMA İŞLEMİ ---
         const response = await api.post('/auth/login', {
           username: formData.username,
           password: formData.password
         });
         
-        // Yanıt içindeki verileri sakla
+        // Token'ı sakla
         localStorage.setItem('token', response.data.access_token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+        
+        // 💰 KULLANICI VERİSİNİ VE BAKİYESİNİ SAKLA
+        // Backend'den gelen user objesinin içinde artık 'balance' da var.
+        const userData = response.data.user;
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        toast.success(`Tekrar hoşgeldin, ${userData.username}! 🚀`);
         navigate('/market');
+
       } else {
-        // Kayıt işlemi için endpoint
+        // --- KAYIT OLMA İŞLEMİ ---
+        // Prisma'da @default(100) dediğimiz için kayıt anında 100 TL otomatik tanımlanacak
         await api.post('/auth/register', formData);
-        alert('Kayıt Başarılı! Şimdi giriş yapabilirsin.');
-        setIsLogin(true);
+        toast.success('Kayıt Başarılı! 100 TL hoşgeldin bonusun tanımlandı. 💰');
+        setIsLogin(true); // Giriş ekranına yönlendir
       }
     } catch (error) {
-      // Hata durumunda detaylı log görmek istersen: console.error(error);
-      alert('İşlem Başarısız! Bilgileri kontrol et.');
+      console.error("Hata:", error);
+      const errorMsg = error.response?.data?.message || 'İşlem Başarısız! Bilgileri kontrol et.';
+      toast.error(errorMsg);
     }
   };
 
@@ -47,13 +55,16 @@ export default function Login() {
       <div style={{ 
         backgroundColor: 'white', 
         padding: '40px', 
-        borderRadius: '15px', 
-        boxShadow: '0 10px 25px rgba(0,0,0,0.2)', 
-        width: '350px',
+        borderRadius: '20px', 
+        boxShadow: '0 15px 35px rgba(0,0,0,0.3)', 
+        width: '380px',
         textAlign: 'center'
       }}>
-        <h2 style={{ color: '#333', marginBottom: '20px' }}>🚀 APK Market</h2>
-        <h4 style={{ color: '#666', marginBottom: '30px', fontWeight: 'normal' }}>{isLogin ? 'Hoşgeldin!' : 'Hemen Aramıza Katıl'}</h4>
+        <div style={{ fontSize: '50px', marginBottom: '10px' }}>🚀</div>
+        <h2 style={{ color: '#333', marginBottom: '10px', fontWeight: '800' }}>APK MARKET</h2>
+        <h4 style={{ color: '#666', marginBottom: '30px', fontWeight: 'normal' }}>
+          {isLogin ? 'Hesabına giriş yap' : 'Yeni hesap oluştur ve 100 TL kazan'}
+        </h4>
         
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <input 
@@ -86,13 +97,17 @@ export default function Login() {
           />
 
           <button type="submit" style={buttonStyle}>
-            {isLogin ? 'Giriş Yap' : 'Kayıt Ol'}
+            {isLogin ? 'Giriş Yap' : 'Hemen Kayıt Ol'}
           </button>
         </form>
 
-        <p style={{ marginTop: '20px', fontSize: '14px', color: '#666' }}>
-          {isLogin ? 'Hesabın yok mu?' : 'Zaten üye misin?'} <span onClick={() => setIsLogin(!isLogin)} style={{ color: '#764ba2', fontWeight: 'bold', cursor: 'pointer' }}>
-            {isLogin ? 'Kayıt Ol' : 'Giriş Yap'}
+        <p style={{ marginTop: '25px', fontSize: '14px', color: '#666' }}>
+          {isLogin ? 'Henüz hesabın yok mu?' : 'Zaten bir hesabın var mı?'} <br/>
+          <span 
+            onClick={() => setIsLogin(!isLogin)} 
+            style={{ color: '#764ba2', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline' }}
+          >
+            {isLogin ? 'Yeni Hesap Oluştur' : 'Giriş Ekranına Dön'}
           </span>
         </p>
       </div>
@@ -100,23 +115,27 @@ export default function Login() {
   );
 }
 
+// Görsel Stiller
 const inputStyle = {
-  padding: '12px',
-  borderRadius: '8px',
+  padding: '14px',
+  borderRadius: '10px',
   border: '1px solid #ddd',
-  fontSize: '14px',
+  fontSize: '15px',
   outline: 'none',
-  transition: '0.3s'
+  backgroundColor: '#f9f9f9',
+  transition: '0.3s focus',
 };
 
 const buttonStyle = {
-  padding: '12px',
-  borderRadius: '8px',
+  padding: '14px',
+  borderRadius: '10px',
   border: 'none',
   background: 'linear-gradient(to right, #667eea, #764ba2)',
   color: 'white',
   fontSize: '16px',
   fontWeight: 'bold',
   cursor: 'pointer',
-  marginTop: '10px'
+  marginTop: '10px',
+  boxShadow: '0 5px 15px rgba(118, 75, 162, 0.4)',
+  transition: '0.3s transform'
 };
